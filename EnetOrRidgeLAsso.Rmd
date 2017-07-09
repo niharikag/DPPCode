@@ -1,0 +1,116 @@
+---
+title: "EnetOrRidgeLasso"
+author: "Niharika"
+date: "27 September 2016"
+output: pdf_document
+---
+
+```{r,echo=FALSE,warning=FALSE,error=FALSE, include=FALSE}
+library(glmnet)
+
+```
+
+some initialization
+
+```{r}
+q = .01
+n=100
+p=10
+err.sigma = 1
+s = 8 #number of active features
+true.beta = c(rep(1,s),rep(0,p-8))
+```
+
+Method for Data generation.
+```{r}
+########generate data
+generate.data = function(p, n, true.beta, err.sigma)
+{
+  x.train=matrix(0,n,p)
+  x.valid =matrix(0,n,p)
+  
+  Z1 = rnorm(n)
+ 
+  #correlated features
+  for(i in 1:5)
+  {
+    x.train[,i] = Z1 + rnorm(n,0,q)
+    x.valid[,i] = Z1 + rnorm(n,0,q)
+    
+  }
+  
+  #independent features
+  for(i in 5:p)
+  {
+    x.train[,i] = rnorm(n)
+    x.valid[,i]=rnorm(n)
+  }
+  
+  y.train = drop (x.train %*% true.beta) + err.sigma*rnorm (n)
+  y.valid = drop (x.valid %*% true.beta) + err.sigma*rnorm (n)
+  
+  result = list(x.train = x.train,  y.train = y.train, x.valid = x.valid, y.valid=y.valid)
+  return(result)
+}
+```
+
+generate data
+```{r}
+d = generate.data(p, n, true.beta, err.sigma)
+x = d$x.train
+y = d$y.train
+```
+
+#one set of lambda, alpha
+```{r}
+lamda_1 = 1
+lamda_2 = 2
+alpha = lamda_1/(lamda_1+lamda_2)
+lambda = lamda_1+lamda_2
+```
+
+#elastic net, using direct glmnet
+```{r}
+res.enet = glmnet(x, y, alpha = alpha, lambda = lambda)
+```
+
+#compute enet applying Lasso on the modified design matrix
+```{r}
+d = diag(sqrt(lamda_2),p) 
+x1 = rbind(x, d) #Augment the design matrix with d
+y1 =  c(y, rep(0,p)) #Augment the response vector with 0
+res.lasso =  glmnet(x1, y1, alpha = 1, lambda = lamda_1)
+```
+
+#Compare both the estimates
+```{r}
+res.enet$beta
+res.lasso$beta
+```
+
+#Compare output with another set of lambda, alpha
+```{r}
+lamda_1 = 0.5
+lamda_2 = 1.5
+
+```
+
+```{r,echo=FALSE,warning=FALSE,error=FALSE, include=FALSE}
+alpha = lamda_1/(lamda_1+lamda_2)
+lambda = lamda_1+lamda_2
+#elastic net, using direct glmnet
+
+res.enet = glmnet(x, y, alpha = alpha, lambda = lambda)
+
+
+#compute enet applying Lasso on the modified design matrix
+d = diag(sqrt(lamda_2),p) 
+x1 = rbind(x, d) #Augment the design matrix with d
+y1 =  c(y, rep(0,p)) #Augment the response vector with 0
+res.lasso =  glmnet(x1, y1, alpha = 1, lambda = lamda_1)
+```
+#Compare both the estimates
+```{r}
+res.enet$beta
+res.lasso$beta
+```
